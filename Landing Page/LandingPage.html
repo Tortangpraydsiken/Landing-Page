@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Explore the Hidden Gems of Mabini, Batangas</title>
+  <meta name="description" content="Interactive Mabini map with draggable magnifiers, cursor ripple waves, parallax, and curated spots." />
+  <style>
+/* ==========================
+   VARIABLES & RESET
+   ========================== */
+:root{
+  --accent1: #00d4ff;
+  --accent2: #0077c2;
+  --bg-dark: #021726;
+  --muted-white: rgba(255,255,255,0.95);
+  --glass: rgba(255,255,255,0.06);
+  --card: rgba(255,255,255,0.03);
+  --ui-radius: 14px;
+  --ease: cubic-bezier(.16,.84,.24,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:Inter, "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;color:var(--muted-white);background:linear-gradient(180deg,#021726 0%, #062a4e 60%, #053a64 100%);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:hidden;}
+a{color:inherit;text-decoration:none}
+button{font:inherit}
+
+/* ==========================
+   TOP NAV (minimal — no box label)
+   ========================== */
+nav.topbar{
+  position:fixed;left:18px;right:1300px;top:14px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-radius:999px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  box-shadow:0 10px 30px rgba(0,0,0,0.45);z-index:1600;backdrop-filter: blur(0px) saturate(.20)
+}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:grid;place-items:center;font-weight:800;color:#012}
+.brand h1{font-size:16px;margin:0;letter-spacing:.6px;opacity:.98}
+.toolbar{display:flex;gap:8px;align-items:center}
+.btn{padding:8px 12px;border-radius:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.04);cursor:pointer;transition:transform .18s var(--ease)}
+.btn:hover{transform:translateY(-3px)}
+
+/* ==========================
+   HERO / MAP STAGE
+   ========================== */
+header.hero{
+  position:relative;height:100vh;min-height:720px;overflow:hidden;display:flex;align-items:flex-start;justify-content:center;padding:60px 28px 24px;text-align:center;isolation:isolate;
+}
+
+/* map base (replace url with nicer Mabini/Batangas map if you have) */
+.map-stage{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none}
+.map-base{
+  position:absolute;inset:0;
+  background-image:url('bg1.jpg');
+  background-size:cover;background-position:center 35%;
+  filter:saturate(1.04) contrast(1.02) brightness(.95);
+  will-change:transform;transform-origin:center;opacity:0.98;
+}
+.map-overlay{position:absolute;inset:0;background:linear-gradient(180deg, rgba(2,23,52,0.08), rgba(1,8,20,0.22));pointer-events:none;mix-blend-mode:multiply}
+
+/* soft vignette to draw focus */
+.map-vignette{position:absolute;inset:0;background:radial-gradient(60% 40% at 50% 35%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 40%, rgba(0,0,0,0.6) 100%);mix-blend-mode:multiply;pointer-events:none}
+
+/* decorative parallax clouds */
+.map-parallax{position:absolute;inset:0;z-index:22;pointer-events:none}
+.par-cloud{position:absolute;background:radial-gradient(circle at 30% 20%, rgba(255,255,255,0.9), rgba(255,255,255,0.08));filter:blur(12px);opacity:.45;mix-blend-mode:screen}
+
+/* subtle moving particles */
+.particles{position:absolute;inset:0;z-index:24;pointer-events:none}
+.particle{position:absolute;width:6px;height:6px;border-radius:50%;background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6));opacity:.06;filter:blur(.6px)}
+
+/* magnifier layer */
+.magnifier-layer{position:absolute;inset:0;z-index:30;pointer-events:none}
+.magnifier{
+  position:absolute;width:170px;height:170px;border-radius:50%;overflow:hidden;border:6px solid rgba(255,255,255,0.94);
+  box-shadow:0 18px 60px rgba(0,0,0,0.55), inset 0 5px 18px rgba(255,255,255,0.04);
+  background:radial-gradient(circle at 28% 22%, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  backdrop-filter:blur(6px) saturate(1.02);transform-origin:center;pointer-events:auto;cursor:grab;transition:transform .18s var(--ease),box-shadow .18s var(--ease);
+}
+.magnifier:active{cursor:grabbing}
+.magnifier .lens{position:absolute;inset:0;background-repeat:no-repeat;background-size:260% 260%;background-position:center;transition:transform .18s var(--ease),background-position .12s linear}
+.magnifier .glint{position:absolute;top:12px;left:12px;width:46px;height:46px;border-radius:50%;background:linear-gradient(45deg, rgba(255,255,255,0.9), rgba(255,255,255,0.08));mix-blend-mode:screen;opacity:.75}
+.magnifier .handle{position:absolute;bottom:-28px;right:18px;width:14px;height:76px;border-radius:10px;background:linear-gradient(180deg,var(--accent2),var(--accent1));transform:rotate(42deg);box-shadow:0 10px 30px rgba(0,0,0,0.45)}
+.magnifier .hint{position:absolute;top:-40px;left:50%;transform:translateX(-50%);padding:6px 10px;border-radius:999px;background:rgba(2,23,52,0.82);font-size:12px;color:#dff7ff;opacity:0;transition:opacity .12s}
+.magnifier:hover .hint{opacity:1}
+.magnifier.active{transform:scale(1.06);box-shadow:0 30px 100px rgba(0,212,255,0.12),0 12px 40px rgba(0,119,194,0.09)}
+
+@keyframes floatA{0%{transform:translateY(0) rotate(0)}50%{transform:translateY(-24px) rotate(2deg)}100%{transform:translateY(0) rotate(0)}}
+@keyframes floatB{0%{transform:translateY(0) rotate(0)}50%{transform:translateY(-30px) rotate(-3deg)}100%{transform:translateY(0) rotate(0)}}
+@keyframes floatC{0%{transform:translateY(0) rotate(0)}50%{transform:translateY(-18px) rotate(5deg)}100%{transform:translateY(0) rotate(0)}}
+
+/* ==========================
+   CURSOR MAGNIFIER + RIPPLE WAVES
+   ========================== */
+.cursor-magnifier{position:fixed;left:0;top:0;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;z-index:1650;pointer-events:none;display:grid;place-items:center;background:rgba(255,255,255,0.06);border:2px solid rgba(255,255,255,0.62);box-shadow:0 8px 28px rgba(0,0,0,0.5);transition:transform .12s linear,opacity .18s ease;opacity:0}
+.cursor-magnifier.show{opacity:1}
+.cursor-magnifier .glass{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 30% 28%, rgba(255,255,255,0.98), rgba(255,255,255,0.12));box-shadow:inset 0 2px 6px rgba(255,255,255,0.06)}
+.ripple-layer{position:fixed;inset:0;pointer-events:none;z-index:1640}
+.ripple{position:absolute;border-radius:50%;transform:translate(-50%,-50%) scale(0);opacity:.32;background:radial-gradient(circle, rgba(0,212,255,0.28), rgba(0,119,194,0.06));box-shadow:0 6px 24px rgba(0,212,255,0.06);pointer-events:none;transition:transform .72s var(--ease),opacity .72s var(--ease)}
+
+/* ==========================
+   HERO CONTENT (moved up)
+   ========================== */
+.hero-inner{position:relative;z-index:140;max-width:1100px;padding:28px 22px 18px;display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:-64px}
+.headline{font-size:clamp(28px,5.2vw,56px);font-weight:800;line-height:1.02;color:#e9fbff;text-shadow:0 10px 30px rgba(0,0,0,0.6)}
+.sub{font-size:clamp(14px,1.4vw,18px);color:rgba(234,250,255,0.92);max-width:880px;text-align:center;opacity:.96}
+.hero-cta{display:flex;gap:12px;margin-top:8px}
+.cta-primary{padding:12px 18px;border-radius:999px;background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#012;font-weight:800;box-shadow:0 12px 44px rgba(0,212,255,0.06)}
+.cta-secondary{padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.04)}
+
+/* glow wave behind headline */
+.headline-wrap{position:relative;display:inline-block}
+.headline-wave{position:absolute;inset:-18px;z-index:-1;border-radius:16px;background:linear-gradient(90deg, rgba(0,212,255,0.08), rgba(0,119,194,0.06));filter:blur(22px);opacity:.9;transform:translateY(8px) scale(1.02)}
+
+/* arrow */
+.hero-arrow{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);width:96px;height:96px;border-radius:50%;display:grid;place-items:center;z-index:140;cursor:pointer;border:1px solid rgba(255,255,255,0.06);background:radial-gradient(circle at 30% 30%, rgba(0,212,255,0.08), rgba(0,119,194,0.04));box-shadow:0 14px 44px rgba(0,0,0,0.5)}
+.hero-arrow .ring{position:absolute;inset:-8px;border-radius:50%;border:2px solid rgba(0,212,255,0.12);animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hero-arrow svg{width:36px;height:36px;fill:#ddfbff;filter:drop-shadow(0 10px 30px rgba(0,212,255,0.08))}
+
+/* ==========================
+   SHOWCASE / CARDS / MODAL
+   ========================== */
+main.content{position:relative;z-index:200;background:linear-gradient(180deg, rgba(0,0,0,0.03), rgba(255,255,255,0.02));padding:120px 6% 160px;min-height:680px}
+.section-title{text-align:center;margin-bottom:22px}
+.section-title h2{font-size:28px;margin:0;color:#e9fbff}
+.section-title p{max-width:880px;margin:10px auto 0;color:rgba(255,255,255,0.86)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;margin-top:34px}
+.spot-card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));padding:16px;border-radius:12px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,0.35);transition:transform .18s var(--ease),box-shadow .18s var(--ease)}
+.spot-card:hover{transform:translateY(-8px);box-shadow:0 20px 60px rgba(0,0,0,0.45)}
+.spot-card img{width:110px;height:78px;object-fit:cover;border-radius:10px;border:2px solid rgba(255,255,255,0.04);flex-shrink:0}
+.spot-meta h4{margin:0;font-size:16px;color:#eafcff}
+.spot-meta p{margin:0;font-size:13px;color:rgba(255,255,255,0.8)}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,23,52,0.82);display:none;align-items:center;justify-content:center;z-index:1700}
+.modal{width:min(980px,94vw);max-height:86vh;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border-radius:16px;display:flex;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,0.6)}
+.modal .slide{width:56%;background-size:cover;background-position:center}
+.modal .content{padding:26px;width:44%;display:flex;flex-direction:column;gap:12px;justify-content:center;color:var(--muted-white)}
+.modal .close{position:absolute;right:12px;top:12px;width:44px;height:44px;border-radius:10px;background:rgba(255,255,255,0.04);display:grid;place-items:center;cursor:pointer}
+
+/* footer */
+footer.sitefoot{padding:34px 6%;display:flex;align-items:center;justify-content:space-between;color:rgba(255,255,255,0.9)}
+.small{opacity:.78;font-size:13px}
+
+/* responsive */
+@media (max-width:900px){
+  .magnifier{width:130px;height:130px}
+  .cursor-magnifier{width:48px;height:48px}
+  .modal{flex-direction:column}
+  .modal .slide,.modal .content{width:100%}
+  .hero-inner{padding:28px}
+  .headline{font-size:32px;margin-top:-80px}
+}
+  </style>
+</head>
+<body>
+
+  <!-- Top nav (no boxed label) -->
+  <nav class="topbar" role="navigation" aria-label="Main nav">
+    <div class="brand">
+      <div class="logo">MB</div>
+      <div>
+        <h1 style="font-size:14px;margin:0">Explore Mabini</h1>
+      </div>
+    </div>
+    <div class="toolbar" role="toolbar" aria-label="Toolbar">
+      <button id="help-btn" class="btn" title="Quick tips">?</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero" id="home" aria-label="Map hero">
+    <div class="map-stage" aria-hidden="true">
+      <div class="map-base" id="mapBase"></div>
+      <div class="map-overlay"></div>
+      <div class="map-vignette"></div>
+
+      <div class="map-parallax" id="parallax">
+        <div class="par-cloud" style="left:6%;top:8%;width:420px;height:200px;opacity:0.44"></div>
+        <div class="par-cloud" style="right:4%;top:6%;width:360px;height:140px;opacity:0.42"></div>
+        <div class="par-cloud" style="left:18%;bottom:12%;width:320px;height:130px;opacity:0.36"></div>
+      </div>
+
+      <div class="particles" id="particles"></div>
+
+      <div class="magnifier-layer" id="magnifierLayer">
+        <div class="magnifier floatA" id="magA" style="left:14%;top:22%;animation:floatA 8s ease-in-out infinite;" tabindex="0" role="button" aria-label="Magnifier 1">
+          <div class="lens" id="lensA"></div>
+          <div class="glint"></div>
+          <div class="hint">Drag to explore</div>
+          <div class="handle"></div>
+        </div>
+
+        <div class="magnifier floatB" id="magB" style="left:72%;top:30%;animation:floatB 10s ease-in-out infinite;" tabindex="0" role="button" aria-label="Magnifier 2">
+          <div class="lens" id="lensB"></div>
+          <div class="glint"></div>
+          <div class="hint">Zoom the map</div>
+          <div class="handle"></div>
+        </div>
+
+        <div class="magnifier floatC" id="magC" style="left:38%;top:66%;animation:floatC 9s ease-in-out infinite;" tabindex="0" role="button" aria-label="Magnifier 3">
+          <div class="lens" id="lensC"></div>
+          <div class="glint"></div>
+          <div class="hint">Reveal details</div>
+          <div class="handle"></div>
+        </div>
+
+        <div class="magnifier" id="magGuide" style="left:50%;top:50%;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:none;">
+          <div class="lens" id="lensGuide"></div>
+          <div class="glint"></div>
+          <div class="hint" style="top:auto;bottom:-46px">Try moving me</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-inner" role="article" aria-live="polite">
+      <div class="headline-wrap">
+        <div class="headline">Explore the Hidden Gems of <span style="color:var(--accent1)">Mabini, Batangas</span></div>
+        <div class="headline-wave" aria-hidden="true"></div>
+      </div>
+      <div class="sub">Drag the magnifying glasses across the map to explore — the cursor leaves a subtle ripple wave as you move.</div>
+
+      <div class="hero-cta">
+        <a class="cta-primary" id="ctaExplore" href="#destinations">Discover Spots ⤴</a>
+      </div>
+    </div>
+
+    <div class="hero-arrow" id="arrowDown" title="Scroll to featured">
+      <div class="ring" aria-hidden="true"></div>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16.5c-.27 0-.53-.11-.71-.29l-6.5-6.5a1 1 0 011.42-1.42L12 13.09l5.79-5.8a1 1 0 111.42 1.42l-6.5 6.5c-.18.18-.44.29-.71.29z"/></svg>
+    </div>
+  </header>
+
+  <!-- MODAL -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-hidden="true">
+    <div class="modal" role="document" aria-labelledby="modalTitle">
+      <div class="slide" id="modalSlide" style="background-image:url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80')"></div>
+      <div class="content">
+        <h3 id="modalTitle">Location</h3>
+        <p id="modalText">Details about the spot will appear here.</p>
+        <div style="display:flex;gap:12px;margin-top:6px;">
+          <button class="btn" id="modalClose">Close</button>
+          <a class="btn" id="modalMore" href="#" target="_blank">Open in map</a>
+        </div>
+      </div>
+      <div class="close" id="modalX" title="Close modal">✕</div>
+    </div>
+  </div>
+
+  <!-- SHOWCASE -->
+  <main class="content" id="destinations" role="main">
+    <div class="section-title">
+      <h2>Featured Mabini Spots</h2>
+      <p>Hand-picked highlights around Mabini to help you plan your trip: islands, viewpoints, and beaches — curated for exploration.</p>
+    </div>
+
+    <div class="grid" id="cardsGrid">
+      <article class="spot-card" data-id="sombrero" tabindex="0">
+        <img src="https://images.unsplash.com/photo-1542315120-2b1a2b8c4f24?auto=format&fit=crop&w=900&q=60" alt="Sombrero Island">
+        <div class="spot-meta">
+          <h4>Anilao, Mabini, Batangas</h4>
+          <p>A small island with clear waters ideal for snorkeling and quick island hopping trips.</p>
+        </div>
+      </article>
+
+      <article class="spot-card" data-id="gulugod" tabindex="0">
+        <img src="https://images.unsplash.com/photo-1518684079-2d9a92f9d3b8?auto=format&fit=crop&w=900&q=60" alt="Mt. Gulugod Baboy">
+        <div class="spot-meta">
+          <h4>Mt. Gulugod Baboy</h4>
+          <p>Short hike with panoramic views of the coastline and nearby islands — perfect at sunrise.</p>
+        </div>
+      </article>
+
+      <article class="spot-card" data-id="sepoc" tabindex="0">
+        <img src="https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=900&q=60" alt="Sepoc Beach">
+        <div class="spot-meta">
+          <h4>Camp Netanya</h4>
+          <p>Secluded beach spots with calm waters — great for restful afternoons and snorkeling.</p>
+        </div>
+      </article>
+
+      <article class="spot-card" data-id="ligpo" tabindex="0">
+        <img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=900&q=60" alt="Ligpo Island">
+        <div class="spot-meta">
+          <h4>Awari Bay</h4>
+          <p>A lesser-known island close to Mabini, perfect for day trips and marine life spotting.</p>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="sitefoot">
+    <div class="small">© 2025 Explore Mabini · Built with care</div>
+    <div style="opacity:.9">Tip: Press <kbd>R</kbd> to reset magnifiers.</div>
+  </footer>
+
+  <!-- Cursor magnifier + ripples -->
+  <div class="cursor-magnifier" id="cursorMag" aria-hidden="true"><div class="glass"></div></div>
+  <div class="ripple-layer" id="rippleLayer"></div>
+
+  <div class="visually-hidden" id="ariaStatus" aria-live="polite"></div>
+
+<script>
+/* ==========================
+   Helpers
+   ========================== */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+/* DOM refs */
+const mapBase = $('#mapBase');
+const magA = $('#magA'), magB = $('#magB'), magC = $('#magC'), magGuide = $('#magGuide');
+const lensA = $('#lensA'), lensB = $('#lensB'), lensC = $('#lensC'), lensGuide = $('#lensGuide');
+const cursorMag = $('#cursorMag');
+const rippleLayer = $('#rippleLayer');
+const modalBackdrop = $('#modalBackdrop');
+const modalTitle = $('#modalTitle'), modalText = $('#modalText'), modalSlide = $('#modalSlide');
+const modalClose = $('#modalClose'), modalX = $('#modalX');
+const helpBtn = $('#help-btn');
+const ariaStatus = $('#ariaStatus');
+
+/* Showcase data */
+const MARKERS = {
+  sombrero:{id:'sombrero',title:'Sombrero Island',text:'Small island for snorkeling and quick hops.',img:'https://images.unsplash.com/photo-1542315120-2b1a2b8c4f24?auto=format&fit=crop&w=1400&q=70'},
+  gulugod:{id:'gulugod',title:'Mt. Gulugod Baboy',text:'Short hike with great sunrise views.',img:'https://images.unsplash.com/photo-1518684079-2d9a92f9d3b8?auto=format&fit=crop&w=1400&q=70'},
+  sepoc:{id:'sepoc',title:'Sepoc Beach',text:'Secluded beach perfect for calm afternoons.',img:'https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1400&q=70'},
+  ligpo:{id:'ligpo',title:'Ligpo Island',text:'Lesser-known island for marine spotting.',img:'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1400&q=70'}
+};
+
+/* set lens backgrounds to the same map image */
+const baseBg = getComputedStyle(mapBase).backgroundImage || '';
+[lensA,lensB,lensC,lensGuide].forEach(l => { if(l) l.style.backgroundImage = baseBg; });
+
+/* ==========================
+   Particles
+   ========================== */
+(function createParticles(){
+  const total = 34;
+  const container = document.querySelector('.map-stage');
+  for(let i=0;i<total;i++){
+    const el = document.createElement('div');
+    el.className = 'particle';
+    el.style.left = (Math.random()*100).toFixed(2) + '%';
+    el.style.top = (Math.random()*100).toFixed(2) + '%';
+    el.style.opacity = (0.03 + Math.random()*0.12).toFixed(2);
+    el.style.transform = `scale(${(0.6 + Math.random()*1.4).toFixed(2)})`;
+    container.appendChild(el);
+  }
+})();
+
+/* ==========================
+   Lens update (magnification)
+   ========================== */
+function updateLens(mag, lens){
+  const rectMap = mapBase.getBoundingClientRect();
+  const rectMag = mag.getBoundingClientRect();
+  const cX = rectMag.left + rectMag.width/2;
+  const cY = rectMag.top + rectMag.height/2;
+  const px = ((cX - rectMap.left) / rectMap.width) * 100;
+  const py = ((cY - rectMap.top) / rectMap.height) * 100;
+  const bgX = 100 - px;
+  const bgY = 100 - py;
+  if(lens) lens.style.backgroundPosition = `${bgX}% ${bgY}%`;
+  const driftX = (px - 50) / 40;
+  const driftY = (py - 50) / 40;
+  if(lens) lens.style.transform = `translate3d(${driftX}px, ${driftY}px, 0) scale(1)`;
+}
+
+/* refresh all lenses */
+function refreshAllLenses(){
+  [['magA',lensA],['magB',lensB],['magC',lensC],['magGuide',lensGuide]].forEach(([id,l])=>{
+    const m = document.getElementById(id);
+    if(m && l) updateLens(m, l);
+  });
+}
+refreshAllLenses();
+window.addEventListener('resize', refreshAllLenses);
+
+/* ==========================
+   Draggable magnifiers
+   ========================== */
+function makeDraggable(magEl, lensEl){
+  if(!magEl) return;
+  let dragging=false, offsetX=0, offsetY=0;
+  const down = (e) => {
+    e.preventDefault();
+    dragging = true;
+    magEl.classList.add('active');
+    const rect = magEl.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    offsetX = cx - rect.left;
+    offsetY = cy - rect.top;
+    magEl.style.transition = 'none';
+    document.body.style.userSelect = 'none';
+  };
+  const move = (e) => {
+    if(!dragging) return;
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    const cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const margin = 16;
+    const w = window.innerWidth, h = window.innerHeight;
+    const x = Math.min(Math.max(cx - offsetX, margin), w - magEl.clientWidth - margin);
+    const y = Math.min(Math.max(cy - offsetY, margin + 8), h - magEl.clientHeight - margin - 8);
+    magEl.style.left = x + 'px';
+    magEl.style.top = y + 'px';
+    updateLens(magEl, lensEl);
+  };
+  const up = () => {
+    if(!dragging) return;
+    dragging = false;
+    magEl.classList.remove('active');
+    magEl.style.transition = '';
+    document.body.style.userSelect = '';
+  };
+  magEl.addEventListener('mousedown', down);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+  magEl.addEventListener('touchstart', down, {passive:false});
+  window.addEventListener('touchmove', move, {passive:false});
+  window.addEventListener('touchend', up);
+
+  magEl.addEventListener('keydown', (ev) => {
+    const step = ev.shiftKey ? 24 : 8;
+    const rect = magEl.getBoundingClientRect();
+    if(ev.key === 'ArrowUp'){ magEl.style.top = rect.top - step + 'px'; ev.preventDefault(); }
+    if(ev.key === 'ArrowDown'){ magEl.style.top = rect.top + step + 'px'; ev.preventDefault(); }
+    if(ev.key === 'ArrowLeft'){ magEl.style.left = rect.left - step + 'px'; ev.preventDefault(); }
+    if(ev.key === 'ArrowRight'){ magEl.style.left = rect.left + step + 'px'; ev.preventDefault(); }
+    updateLens(magEl, lensEl);
+  });
+
+  setInterval(()=>{ if(!dragging) updateLens(magEl, lensEl); }, 400);
+}
+
+makeDraggable(magA,lensA);
+makeDraggable(magB,lensB);
+makeDraggable(magC,lensC);
+setInterval(()=>updateLens(magGuide,lensGuide),360);
+
+/* ==========================
+   Cursor magnifier behavior + ripple waves
+   ========================== */
+const heroEl = document.querySelector('.hero');
+heroEl.addEventListener('mouseenter', ()=>{ document.body.style.cursor='none'; cursorMag.classList.add('show'); });
+heroEl.addEventListener('mouseleave', ()=>{ document.body.style.cursor=''; cursorMag.classList.remove('show'); });
+
+window.addEventListener('mousemove', (e)=>{
+  cursorMag.style.left = e.clientX + 'px';
+  cursorMag.style.top = e.clientY + 'px';
+});
+
+/* ripple waves on move (subtle single-type wave) */
+let lastRipple = 0;
+window.addEventListener('mousemove', (e)=>{
+  const now = Date.now();
+  if(now - lastRipple < 90) return; // throttle
+  lastRipple = now;
+  const r = document.createElement('div');
+  r.className = 'ripple';
+  r.style.left = e.clientX + 'px';
+  r.style.top = e.clientY + 'px';
+  r.style.width = '10px'; r.style.height = '10px';
+  rippleLayer.appendChild(r);
+  requestAnimationFrame(()=>{ r.style.transform='translate(-50%,-50%) scale(12)'; r.style.opacity='0'; });
+  setTimeout(()=> r.remove(),760);
+});
+
+/* ==========================
+   Modal handling (cards)
+   ========================== */
+function openModalById(id){
+  const info = MARKERS[id];
+  if(!info) return;
+  modalTitle.textContent = info.title;
+  modalText.textContent = info.text;
+  modalSlide.style.backgroundImage = `url('${info.img}')`;
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+  modalBackdrop.querySelector('.close')?.focus();
+  ariaStatus.textContent = info.title + ' opened';
+}
+function closeModal(){ modalBackdrop.style.display = 'none'; modalBackdrop.setAttribute('aria-hidden','true'); ariaStatus.textContent = 'Modal closed'; }
+modalClose.addEventListener('click', closeModal);
+modalX.addEventListener('click', closeModal);
+modalBackdrop.addEventListener('click', (e)=>{ if(e.target === modalBackdrop) closeModal(); });
+window.addEventListener('keydown', (ev)=>{ if(ev.key === 'Escape') closeModal(); });
+
+$$('.spot-card').forEach(card=>{
+  card.addEventListener('click', ()=> openModalById(card.dataset.id));
+  card.addEventListener('keyup', ev => { if(ev.key === 'Enter' || ev.key === ' ') openModalById(card.dataset.id); });
+});
+
+/* ==========================
+   Arrow scroll
+   ========================== */
+document.querySelectorAll('.hero-arrow, #arrowDown').forEach(el=>{
+  if(el) el.addEventListener('click', ()=> document.querySelector('#destinations').scrollIntoView({behavior:'smooth', block:'start'}));
+});
+
+/* ==========================
+   Reset via keyboard (R)
+   ========================== */
+function resetMagnifiers(){
+  magA.style.left = '14%'; magA.style.top = '22%';
+  magB.style.left = '72%'; magB.style.top = '30%';
+  magC.style.left = '38%'; magC.style.top = '66%';
+  magGuide.style.left = '50%'; magGuide.style.top = '50%';
+  refreshAllLenses();
+  ariaStatus.textContent = 'Magnifiers reset';
+}
+window.addEventListener('keydown', (ev)=>{
+  if(ev.key.toLowerCase()==='r') resetMagnifiers();
+});
+
+/* ==========================
+   Parallax map movement
+   ========================== */
+document.addEventListener('mousemove', (e)=>{
+  const rx = (e.clientX / window.innerWidth - 0.5) * 8;
+  const ry = (e.clientY / window.innerHeight - 0.5) * 8;
+  mapBase.style.transform = `translate3d(${rx}px, ${ry}px, 0) scale(1.02)`;
+});
+
+/* ==========================
+   Hover cursor scale for interactives
+   ========================== */
+function bindHoverCursor(sel){
+  $$(sel).forEach(el=>{
+    el.addEventListener('mouseenter', ()=>{ cursorMag.style.transform = 'translate(-50%,-50%) scale(1.22)'; });
+    el.addEventListener('mouseleave', ()=>{ cursorMag.style.transform = 'translate(-50%,-50%) scale(1)'; });
+  });
+}
+bindHoverCursor('.magnifier, .spot-card, .btn, .hero-arrow');
+
+/* ==========================
+   Idle loop & reduced motion support
+   ========================== */
+[lensA,lensB,lensC,lensGuide].forEach(l=> { if(l) l.style.backgroundSize = '260% 260%'; });
+function idleLoop(){ refreshAllLenses(); requestAnimationFrame(idleLoop); }
+requestAnimationFrame(idleLoop);
+
+if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+  $$('.magnifier').forEach(m=> m.style.animation='none');
+  $$('.par-cloud').forEach(c=> c.style.animation='none');
+  $$('.particle').forEach(p=> p.style.display='none');
+  mapBase.style.transition='none';
+}
+
+/* help */
+helpBtn.addEventListener('click', ()=> alert('Tips:\n• Drag magnifiers to explore the map.\n• Click cards to open details.\n• Press R to reset magnifiers.'));
+
+/* entrance */
+window.addEventListener('load', ()=>{
+  setTimeout(()=> document.querySelector('.topbar').style.transform='translateY(0)', 80);
+  setTimeout(()=> document.querySelector('.headline').style.opacity=1, 180);
+  setTimeout(()=> document.querySelector('.sub').style.opacity=1, 360);
+  refreshAllLenses();
+});
+</script>
+</body>
+</html>
